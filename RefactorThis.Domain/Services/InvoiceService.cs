@@ -1,0 +1,151 @@
+using RefactorThis.Domain.Common;
+using RefactorThis.Domain.Entities;
+using RefactorThis.Domain.Enums;
+using RefactorThis.Domain.Repositories;
+using System;
+using System.Linq;
+
+namespace RefactorThis.Domain
+{
+    public class InvoiceService
+    {
+        private readonly IInvoiceRepository _invoiceRepository;
+
+        public InvoiceService(IInvoiceRepository invoiceRepository)
+        {
+            _invoiceRepository = invoiceRepository;
+        }
+
+        public string ProcessPayment(Payment payment)
+        {
+            var inv = _invoiceRepository.GetInvoice(payment.Reference);
+
+            var responseMessage = string.Empty;
+
+            if (inv == null)
+            {
+                throw new InvalidOperationException(InvoiceResponse.NoInvoiceFoundForPaymentReference);
+            }
+
+            if (inv.Amount == 0)
+            {
+                if (inv.Payments == null || !inv.Payments.Any())
+                {
+                    responseMessage = InvoiceResponse.NoPaymentNeeded;
+                }
+                else
+                {
+                    throw new InvalidOperationException(InvoiceResponse.InvalidInvoice);
+                }
+            }
+            else
+            {
+                if (inv.Payments != null && inv.Payments.Any())
+                {
+                    if (inv.Payments.Sum(x => x.Amount) != 0 && inv.Amount == inv.Payments.Sum(x => x.Amount))
+                    {
+                        responseMessage = InvoiceResponse.NoPartialPaymentExistsAndAmountPaidEqualsInvoiceAmount;
+                    }
+                    else if (inv.Payments.Sum(x => x.Amount) != 0 && payment.Amount > (inv.Amount - inv.AmountPaid))
+                    {
+                        responseMessage = InvoiceResponse.PartialPaymentExistsAndAmountPaidExceedsAmountDue;
+                    }
+                    else
+                    {
+                        if ((inv.Amount - inv.AmountPaid) == payment.Amount)
+                        {
+                            switch (inv.Type)
+                            {
+                                case InvoiceType.Standard:
+                                    inv.AmountPaid += payment.Amount;
+                                    inv.Payments.Add(payment);
+                                    responseMessage = InvoiceResponse.PartialPaymentExistsAndAmountPaidEqualsAmountDue;
+                                    break;
+                                case InvoiceType.Commercial:
+                                    inv.AmountPaid += payment.Amount;
+                                    inv.TaxAmount += payment.Amount * 0.14m;
+                                    inv.Payments.Add(payment);
+                                    responseMessage = InvoiceResponse.PartialPaymentExistsAndAmountPaidEqualsAmountDue;
+                                    break;
+                                default:
+                                    throw new ArgumentOutOfRangeException();
+                            }
+
+                        }
+                        else
+                        {
+                            switch (inv.Type)
+                            {
+                                case InvoiceType.Standard:
+                                    inv.AmountPaid += payment.Amount;
+                                    inv.Payments.Add(payment);
+                                    responseMessage = InvoiceResponse.PartialPaymentExistsAndAmountPaidIsLessThanAmountDue;
+                                    break;
+                                case InvoiceType.Commercial:
+                                    inv.AmountPaid += payment.Amount;
+                                    inv.TaxAmount += payment.Amount * 0.14m;
+                                    inv.Payments.Add(payment);
+                                    responseMessage = InvoiceResponse.PartialPaymentExistsAndAmountPaidIsLessThanAmountDue;
+                                    break;
+                                default:
+                                    throw new ArgumentOutOfRangeException();
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    if (payment.Amount > inv.Amount)
+                    {
+                        responseMessage = InvoiceResponse.NoPartialPaymentExistsAndAmountPaidExceedsInvoiceAmount;
+                    }
+                    else if (inv.Amount == payment.Amount)
+                    {
+                        switch (inv.Type)
+                        {
+                            case InvoiceType.Standard:
+                                inv.AmountPaid = payment.Amount;
+                                inv.TaxAmount = payment.Amount * 0.14m;
+                                inv.Payments.Add(payment);
+                                responseMessage = InvoiceResponse.InvoiceNowFullyPaid;
+                                break;
+                            case InvoiceType.Commercial:
+                                inv.AmountPaid = payment.Amount;
+                                inv.TaxAmount = payment.Amount * 0.14m;
+                                inv.Payments.Add(payment);
+                                responseMessage = InvoiceResponse.InvoiceNowFullyPaid;
+                                break;
+                            default:
+                                throw new ArgumentOutOfRangeException();
+                        }
+                    }
+                    else
+                    {
+                        switch (inv.Type)
+                        {
+                            case InvoiceType.Standard:
+                                inv.AmountPaid = payment.Amount;
+                                inv.TaxAmount = payment.Amount * 0.14m;
+                                inv.Payments.Add(payment);
+                                responseMessage = InvoiceResponse.NoPartialPaymentExistsAndAmountPaidIsLessThanInvoiceAmount;
+                                break;
+                            case InvoiceType.Commercial:
+                                inv.AmountPaid = payment.Amount;
+                                inv.TaxAmount = payment.Amount * 0.14m;
+                                inv.Payments.Add(payment);
+                                responseMessage = InvoiceResponse.NoPartialPaymentExistsAndAmountPaidIsLessThanInvoiceAmount;
+                                break;
+                            default:
+                                throw new ArgumentOutOfRangeException();
+                        }
+                    }
+                }
+            }
+
+
+            _invoiceRepository.SaveInvoice(invoice);
+
+            return responseMessage;
+        }
+    }
+}
