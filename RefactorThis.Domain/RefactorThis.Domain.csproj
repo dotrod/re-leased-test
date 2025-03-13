@@ -45,6 +45,7 @@
     <Compile Include="Services\InvoiceService.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Repositories\IInvoiceRepository.cs" />
+    <Compile Include="Enums\InvoiceStatus.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 

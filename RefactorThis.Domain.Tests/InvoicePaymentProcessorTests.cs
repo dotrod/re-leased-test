@@ -24,8 +24,8 @@ namespace RefactorThis.Domain.Tests
         [Test]
         public void ProcessPayment_Should_ThrowException_When_NoInvoiceFoundForPaymentReference()
         {
+            SetupMockRepo(null);
             var payment = new Payment();
-            _mockRepo.Setup(repo => repo.GetInvoice(It.IsAny<string>())).Returns((Invoice)null);
 
             var exception = Assert.Throws<InvalidOperationException>(() => _invoiceService.ProcessPayment(payment));
 
@@ -41,8 +41,8 @@ namespace RefactorThis.Domain.Tests
                 AmountPaid = 0,
                 Payments = null
             };
+            SetupMockRepo(invoice);
             var payment = new Payment();
-            _mockRepo.Setup(repo => repo.GetInvoice(It.IsAny<string>())).Returns(invoice);
 
             var response = _invoiceService.ProcessPayment(payment);
 
@@ -64,12 +64,12 @@ namespace RefactorThis.Domain.Tests
                     }
                 }
             };
-            _mockRepo.Setup(repo => repo.GetInvoice(It.IsAny<string>())).Returns(invoice);
-
+            SetupMockRepo(invoice);
             var payment = new Payment();
+
             var response = _invoiceService.ProcessPayment(payment);
 
-            Assert.AreEqual(InvoiceResponse.PartialPaymentExistsAndAmountPaidEqualsInvoiceAmount, response);
+            Assert.AreEqual(InvoiceResponse.AmountPaidEqualsInvoiceAmount, response);
         }
 
         [Test]
@@ -87,15 +87,15 @@ namespace RefactorThis.Domain.Tests
                     }
                 }
             };
+            SetupMockRepo(invoice);
             var payment = new Payment()
             {
                 Amount = 6
             };
-            _mockRepo.Setup(repo => repo.GetInvoice(It.IsAny<string>())).Returns(invoice);
 
             var response = _invoiceService.ProcessPayment(payment);
 
-            Assert.AreEqual(InvoiceResponse.PartialPaymentExistsAndAmountPaidExceedsAmountDue, response);
+            Assert.AreEqual(InvoiceResponse.AmountPaidExceedsAmountDue, response);
         }
 
         [Test]
@@ -107,15 +107,15 @@ namespace RefactorThis.Domain.Tests
                 AmountPaid = 0,
                 Payments = new List<Payment>()
             };
+            SetupMockRepo(invoice);
             var payment = new Payment()
             {
                 Amount = 6
             };
-            _mockRepo.Setup(repo => repo.GetInvoice(It.IsAny<string>())).Returns(invoice);
 
             var result = _invoiceService.ProcessPayment(payment);
 
-            Assert.AreEqual(InvoiceResponse.NoPartialPaymentExistsAndAmountPaidExceedsInvoiceAmount, result);
+            Assert.AreEqual(InvoiceResponse.AmountPaidExceedsInvoiceAmount, result);
         }
 
         [Test]
@@ -133,15 +133,15 @@ namespace RefactorThis.Domain.Tests
                     }
                 }
             };
+            SetupMockRepo(invoice);
             var payment = new Payment()
             {
                 Amount = 5
             };
-            _mockRepo.Setup(repo => repo.GetInvoice(It.IsAny<string>())).Returns(invoice);
 
             var result = _invoiceService.ProcessPayment(payment);
 
-            Assert.AreEqual(InvoiceResponse.PartialPaymentExistsAndAmountPaidEqualsAmountDue, result);
+            Assert.AreEqual(InvoiceResponse.AmountPaidEqualsAmountDue, result);
         }
 
         [Test]
@@ -159,15 +159,15 @@ namespace RefactorThis.Domain.Tests
                     }
                 }
             };
+            SetupMockRepo(invoice);
             var payment = new Payment()
             {
                 Amount = 10
             };
-            _mockRepo.Setup(repo => repo.GetInvoice(It.IsAny<string>())).Returns(invoice);
 
             var result = _invoiceService.ProcessPayment(payment);
 
-            Assert.AreEqual(InvoiceResponse.PartialPaymentExistsAndAmountPaidEqualsInvoiceAmount, result);
+            Assert.AreEqual(InvoiceResponse.AmountPaidEqualsInvoiceAmount, result);
         }
 
         [Test]
@@ -185,15 +185,15 @@ namespace RefactorThis.Domain.Tests
                     }
                 }
             };
+            SetupMockRepo(invoice);
             var payment = new Payment()
             {
                 Amount = 1
             };
-            _mockRepo.Setup(repo => repo.GetInvoice(It.IsAny<string>())).Returns(invoice);
 
             var result = _invoiceService.ProcessPayment(payment);
 
-            Assert.AreEqual(InvoiceResponse.PartialPaymentExistsAndAmountPaidIsLessThanAmountDue, result);
+            Assert.AreEqual(InvoiceResponse.AmountPaidIsLessThanAmountDue, result);
         }
 
         [Test]
@@ -205,15 +205,43 @@ namespace RefactorThis.Domain.Tests
                 AmountPaid = 0,
                 Payments = new List<Payment>()
             };
+            SetupMockRepo(invoice);
             var payment = new Payment()
             {
                 Amount = 1
             };
-            _mockRepo.Setup(repo => repo.GetInvoice(It.IsAny<string>())).Returns(invoice);
 
             var result = _invoiceService.ProcessPayment(payment);
 
-            Assert.AreEqual(InvoiceResponse.NoPartialPaymentExistsAndAmountPaidIsLessThanInvoiceAmount, result);
+            Assert.AreEqual(InvoiceResponse.AmountPaidIsLessThanInvoiceAmount, result);
+        }
+
+        [Test]
+        public void ProcessPayment_Should_ThrowException_When_InvoiceIsInvalid()
+        {
+            var invoice = new Invoice()
+            {
+                Amount = 0,
+                AmountPaid = 0,
+                Payments = new List<Payment>
+                {
+                    new Payment
+                    {
+                        Amount = 10
+                    }
+                }
+            };
+            SetupMockRepo(invoice);
+            var payment = new Payment();
+
+            var exception = Assert.Throws<InvalidOperationException>(() => _invoiceService.ProcessPayment(payment));
+
+            Assert.AreEqual(InvoiceResponse.InvalidInvoice, exception.Message);
+        }
+
+        private void SetupMockRepo(Invoice invoice)
+        {
+            _mockRepo.Setup(repo => repo.GetInvoice(It.IsAny<string>())).Returns(invoice);
         }
     }
 }
